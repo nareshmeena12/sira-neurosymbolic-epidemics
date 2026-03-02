@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sira"
+version = "0.1.0"
+description = "A neuro-symbolic pipeline for discovering epidemic dynamics"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Naresh Meena" }
+]
+dependencies = [
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "torch>=2.0.0",
+    "torchdiffeq>=0.2.3",
+    "matplotlib>=3.7.0",
+    "pyyaml>=6.0",
+    "streamlit>=1.30.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
