@@ -13,6 +13,10 @@ Requires-Dist: torchdiffeq>=0.2.3
 Requires-Dist: matplotlib>=3.7.0
 Requires-Dist: pyyaml>=6.0
 Requires-Dist: streamlit>=1.30.0
+Requires-Dist: pysindy>=1.7.5
+Requires-Dist: google-generativeai>=0.4.0
+Requires-Dist: tqdm>=4.66.0
+Requires-Dist: notebook>=7.0.0
 Dynamic: license-file
 
 # sira-neurosymbolic-epidemics
