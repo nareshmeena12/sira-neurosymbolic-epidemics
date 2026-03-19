@@ -13,8 +13,6 @@ import torch
 import numpy as np
 import pysindy as ps
 import warnings
-
-# Suppress minor PySINDy deprecation warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
@@ -37,24 +35,22 @@ def discover_via_autograd(ml_model: torch.nn.Module, t_data: np.ndarray, print_e
         print("Extracting analytical derivatives via torch.autograd...")
 
     t_tensor = torch.tensor(t_data, dtype=torch.float32).view(-1, 1).requires_grad_(True)
-    preds = ml_model(t_tensor)
+    preds    = ml_model(t_tensor)
     S_pred, I_pred = preds[:, 0], preds[:, 1]
 
-    # Compute exact analytical derivatives
+    # compute exact analytical derivatives for both compartments
     dS_dt = torch.autograd.grad(S_pred, t_tensor, grad_outputs=torch.ones_like(S_pred), create_graph=True)[0]
     dI_dt = torch.autograd.grad(I_pred, t_tensor, grad_outputs=torch.ones_like(I_pred), create_graph=True)[0]
 
-    # Note: Only passing S and I to avoid collinearity issues (since S + I + R = 1)
-    X_sindy = preds[:, :2].detach().numpy()
+    # only pass S and I to SINDy — passing R too causes collinearity since S+I+R=1
+    X_sindy     = preds[:, :2].detach().numpy()
     X_dot_sindy = torch.cat([dS_dt, dI_dt], dim=1).detach().numpy()
 
     if print_equations:
         print("Running symbolic discovery via PySINDy...")
 
-    library = ps.PolynomialLibrary(degree=2, include_bias=False)
-
-    # Threshold of 0.15 is used to filter out minor autograd artifacts
-    optimizer = ps.STLSQ(threshold=0.15, alpha=0.05, normalize_columns=True)
+    library   = ps.PolynomialLibrary(degree=2, include_bias=False)
+    optimizer = ps.STLSQ(threshold=0.2, alpha=0.05, normalize_columns=True)
 
     sindy_model = ps.SINDy(feature_library=library, optimizer=optimizer)
     sindy_model.fit(X_sindy, t=t_data, x_dot=X_dot_sindy)
@@ -63,14 +59,23 @@ def discover_via_autograd(ml_model: torch.nn.Module, t_data: np.ndarray, print_e
         print("\nDiscovered Deterministic Equations (x0=S, x1=I):")
         sindy_model.print()
 
-    coefs = sindy_model.coefficients()
-    
-    # Library order for degree 2 without bias: ['x0', 'x1', 'x0^2', 'x0 x1', 'x1^2']
-    # S*I term is at index 3. I term is at index 1.
+    coefs      = sindy_model.coefficients()
+    feat_names = sindy_model.get_feature_names()
+
+    # look up term positions by name rather than hardcoding indices —
+    # this way the code stays correct even if the library order ever shifts
     try:
-        beta_est = abs(coefs[0, 3])  
-        gamma_est = abs(coefs[1, 1]) 
-    except IndexError:
+        si_idx = next(
+            j for j, name in enumerate(feat_names)
+            if set(name.lower().split()) == {"x0", "x1"}
+        )
+        i_idx = next(
+            j for j, name in enumerate(feat_names)
+            if name.strip().lower() == "x1"
+        )
+        beta_est  = abs(coefs[0, si_idx])
+        gamma_est = abs(coefs[1, i_idx])
+    except StopIteration:
         if print_equations:
             print("Warning: Threshold pruned necessary physical terms. Returning zeros.")
         beta_est, gamma_est = 0.0, 0.0
@@ -106,10 +111,9 @@ def discover_via_weak_formulation(t_data: np.ndarray, x_noisy: np.ndarray, print
         model.print()
 
     coefs = model.coefficients()
-    
+
     try:
-        # Expected library order: x0, x1, x0*x1, x0^2, x1^2
-        beta_est = abs(coefs[0, 2])
+        beta_est  = abs(coefs[0, 2])
         gamma_est = abs(coefs[1, 1])
     except Exception:
         beta_est, gamma_est = 0.0, 0.0
