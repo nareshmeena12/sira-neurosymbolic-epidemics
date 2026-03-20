@@ -134,3 +134,62 @@ def get_deterministic_truth(beta=1.2, gamma=0.3, t_max=20):
         args=(beta, gamma), t_eval=t_eval
     )
     return t_eval, solution.y.T
+def compute_fano_factor(beta, gamma, N_pop=1000, I0=10,
+                         t_max=20, num_sims=200):
+    """
+    Computes the Fano factor (variance / mean) of I(t) at peak infection
+    across a Gillespie ensemble.
+
+    A Fano factor > 1 indicates super-Poissonian variability, which is
+    a known property of CTMC epidemic processes and explains why Gaussian
+    noise approximations underestimate stochastic uncertainty.
+
+    Returns:
+        fano      : Fano factor at peak infection
+        peak_idx  : time index of peak mean infection
+        t_eval    : time grid
+        I_ens     : raw ensemble array (num_sims x time_points)
+    """
+    t_eval = np.linspace(0, t_max, 500)
+    I_ens  = np.zeros((num_sims, 500))
+
+    for sim in range(num_sims):
+        S, I, R = N_pop - I0, I0, 0
+        t       = 0
+        times   = [t]
+        I_p     = [I / N_pop]
+
+        while t < t_max and I > 0:
+            rate_inf   = beta * (S * I) / N_pop
+            rate_rec   = gamma * I
+            total_rate = rate_inf + rate_rec
+            if total_rate == 0:
+                break
+            t += np.random.exponential(1 / total_rate)
+            if np.random.rand() < (rate_inf / total_rate):
+                S -= 1; I += 1
+            else:
+                I -= 1; R += 1
+            times.append(t)
+            I_p.append(I / N_pop)
+
+        I_ens[sim, :] = np.interp(t_eval, times, I_p)
+
+    I_mean   = I_ens.mean(axis=0)
+    I_var    = I_ens.var(axis=0)
+    peak_idx = int(np.argmax(I_mean))
+
+    mean_at_peak = I_mean[peak_idx]
+    var_at_peak  = I_var[peak_idx]
+
+    fano = float(var_at_peak / mean_at_peak) if mean_at_peak > 0 else float("nan")
+
+    return {
+        "fano":       round(fano, 5),
+        "peak_time":  round(float(t_eval[peak_idx]), 3),
+        "peak_mean":  round(float(mean_at_peak), 5),
+        "peak_var":   round(float(var_at_peak),  5),
+        "is_super_poissonian": fano > 1.0,
+        "t_eval":     t_eval,
+        "I_ensemble": I_ens,
+    }
