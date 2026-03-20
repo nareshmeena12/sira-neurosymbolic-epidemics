@@ -464,3 +464,63 @@ def print_audit_summary(audit_rows, competitor_zer=0.020):
     conserved = sum(1 for r in audit_rows if r.get("cld_conserved"))
     print(f"Conserved runs: {conserved} / {len(audit_rows)}")
     print("=" * 55)
+
+def compute_r0_regime_analysis(df, metrics=None):
+    """
+    Bins results by R0 regime and returns median metrics per bin.
+
+    Regimes:
+        endemic    R0 < 2
+        moderate   2 <= R0 < 5
+        fast       5 <= R0 < 10
+        explosive  R0 >= 10
+    """
+    import pandas as pd
+
+    if metrics is None:
+        metrics = [
+            "beta_err_pct", "gamma_err_pct",
+            "spi_overall", "cld_max", "fh_pct", "zer",
+        ]
+
+    df = df.copy()
+    if "status" in df.columns:
+        df = df[df["status"] == "ok"]
+
+    if "r0_true" not in df.columns:
+        df["r0_true"] = df["true_beta"] / df["true_gamma"]
+
+    bins   = [0, 2, 5, 10, float("inf")]
+    labels = ["endemic (R0<2)", "moderate (2-5)", "fast (5-10)", "explosive (R0>10)"]
+    df["regime"] = pd.cut(df["r0_true"], bins=bins, labels=labels, right=False)
+
+    available = [m for m in metrics if m in df.columns]
+    summary   = df.groupby("regime", observed=True)[available].median().round(4)
+
+    counts = {
+        regime: {
+            "total": len(df[df["regime"] == regime]),
+            "pct":   round(len(df[df["regime"] == regime]) / len(df) * 100, 1),
+        }
+        for regime in labels
+    }
+
+    return summary, counts
+
+
+def print_r0_regime_summary(df, metrics=None):
+    """
+    Prints a regime breakdown table from the results dataframe.
+    """
+    summary, counts = compute_r0_regime_analysis(df, metrics=metrics)
+
+    print("\n" + "=" * 65)
+    print("R0 REGIME ANALYSIS")
+    print("=" * 65)
+    print(f"{'Regime':<24} {'N':>5} {'%':>6}")
+    print("-" * 65)
+    for regime, c in counts.items():
+        print(f"{regime:<24} {c['total']:>5} {c['pct']:>5.1f}%")
+    print()
+    print(summary.to_string())
+    print("=" * 65)
