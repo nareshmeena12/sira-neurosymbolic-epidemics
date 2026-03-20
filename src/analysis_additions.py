@@ -233,7 +233,7 @@ def compute_cld_all_methods(n_experiments=30):
     from src.simulation import run_gillespie_ensemble, is_epidemic_active
     from src.neural_net import train_neural_smoother
     from src.equation_discovery import discover_via_autograd
-    from src.numerical_validation import simulate_discovered_physics
+    from src.numerics import simulate_discovered_physics
 
     np.random.seed(42)
     torch.manual_seed(42)
@@ -414,48 +414,3 @@ def plot_fano_vs_depth(results=None, save=True):
         plt.savefig("results/plots/fano_vs_depth.png", dpi=150, bbox_inches="tight")
     plt.show()
     return results
-
-
-# ── Run all additions ─────────────────────────────────────────────────────────
-
-def run_all_additions(fast_csv_path="results/depth_study/depth_study_results.csv"):
-    """
-    Runs all six additions in order and saves all plots.
-    Additions 2, 4, 5 read from the existing CSV (fast).
-    Additions 1, 3, 6, 7 run fresh experiments (slow — ~1 hour total).
-    """
-    print("Running all analysis additions...")
-    print("=" * 55)
-
-    # fast — from existing CSV
-    if os.path.exists(fast_csv_path):
-        df = pd.read_csv(fast_csv_path)
-        print("\nAdditions 2, 4, 5 — reading from existing CSV")
-        from notebook_plotting_cells import (
-            plot_sample_efficiency_curve,
-            plot_r0_failure_boundary,
-            plot_confidence_intervals,
-        )
-    else:
-        print(f"CSV not found at {fast_csv_path} — skipping additions 2, 4, 5")
-
-    # slow — fresh computation
-    print("\nAddition 1 — noise sensitivity curve")
-    noise_df = plot_noise_sensitivity()
-
-    print("\nAddition 3 — derivative quality analysis")
-    deriv_results = plot_derivative_quality()
-
-    print("\nAddition 6 — CLD across integration methods")
-    cld_results = plot_cld_methods()
-
-    print("\nAddition 7 — Fano factor vs ensemble depth")
-    fano_results = plot_fano_vs_depth()
-
-    print("\nAll additions complete. Plots saved to results/plots/")
-    return {
-        "noise_sensitivity": noise_df,
-        "derivative_quality": deriv_results,
-        "cld_methods": cld_results,
-        "fano_vs_depth": fano_results,
-    }
