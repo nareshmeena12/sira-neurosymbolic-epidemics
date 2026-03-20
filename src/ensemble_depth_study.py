@@ -41,6 +41,7 @@ from src.purity_auditor import (
 )
 
 warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=UserWarning, module="pysindy")
 
 
 # ── configuration ─────────────────────────────────────────────────────────────
