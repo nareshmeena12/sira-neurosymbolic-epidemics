@@ -84,38 +84,38 @@ def discover_via_autograd(ml_model: torch.nn.Module, t_data: np.ndarray, print_e
 
 
 def discover_via_weak_formulation(t_data: np.ndarray, x_noisy: np.ndarray, print_equations: bool = True):
-    """
-    Bypasses the neural network to handle noise using the Weak Formulation,
-    which relies on integration over local spatial-temporal windows.
-    """
     if print_equations:
         print("Running Weak SINDy on noisy data...")
 
     x_input = x_noisy[:, :2]
 
+    # function_library replaces the old library_functions parameter
+    # pass a PolynomialLibrary object instead of lambda list
     weak_lib = ps.WeakPDELibrary(
-        library_functions=[lambda x: x, lambda x, y: x * y, lambda x: x**2],
-        function_names=[lambda x: x, lambda x, y: x + ' ' + y, lambda x: x + '^2'],
+        function_library=ps.PolynomialLibrary(degree=2, include_bias=False),
         spatiotemporal_grid=t_data,
-        is_uniform=True,
-        K=100
+        K=100,
     )
 
     optimizer = ps.STLSQ(threshold=0.25, alpha=0.05, normalize_columns=True)
-
-    model = ps.SINDy(feature_library=weak_lib, optimizer=optimizer)
+    model     = ps.SINDy(feature_library=weak_lib, optimizer=optimizer)
     model.fit(x_input, t=t_data)
 
     if print_equations:
         print("\nWeak SINDy Equations (x0=S, x1=I):")
         model.print()
 
-    coefs = model.coefficients()
+    coefs      = model.coefficients()
+    feat_names = model.get_feature_names()
 
     try:
-        beta_est  = abs(coefs[0, 2])
-        gamma_est = abs(coefs[1, 1])
-    except Exception:
+        si_idx    = next(j for j, n in enumerate(feat_names)
+                         if set(n.lower().split()) == {"x0", "x1"})
+        i_idx     = next(j for j, n in enumerate(feat_names)
+                         if n.strip().lower() == "x1")
+        beta_est  = abs(coefs[0, si_idx])
+        gamma_est = abs(coefs[1, i_idx])
+    except StopIteration:
         beta_est, gamma_est = 0.0, 0.0
 
     return beta_est, gamma_est, model
