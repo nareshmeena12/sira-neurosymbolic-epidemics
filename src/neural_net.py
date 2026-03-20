@@ -55,7 +55,7 @@ def train_neural_smoother(t_data: np.ndarray, S_data: np.ndarray,
     Returns:
         Trained PyTorch model moved to CPU.
     """
-    print("Training neural manifold on stochastic data...")
+    # print("Training neural manifold on stochastic data...")
 
     device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model     = SIRContinuousManifold().to(device)
