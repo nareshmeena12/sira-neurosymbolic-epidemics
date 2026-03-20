@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-def discover_via_autograd(ml_model: torch.nn.Module, t_data: np.ndarray, print_equations: bool = True):
+def discover_via_autograd(ml_model: torch.nn.Module, t_data: np.ndarray, print_equations: bool = True,threshold: float = 0.2):
     """
     Extracts analytical derivatives from the continuous neural manifold using 
     PyTorch Autograd, then performs sparse regression via PySINDy.
@@ -50,7 +50,7 @@ def discover_via_autograd(ml_model: torch.nn.Module, t_data: np.ndarray, print_e
         print("Running symbolic discovery via PySINDy...")
 
     library   = ps.PolynomialLibrary(degree=2, include_bias=False)
-    optimizer = ps.STLSQ(threshold=0.2, alpha=0.05, normalize_columns=True)
+    optimizer = ps.STLSQ(threshold=threshold, alpha=0.05, normalize_columns=True)
 
     sindy_model = ps.SINDy(feature_library=library, optimizer=optimizer)
     sindy_model.fit(X_sindy, t=t_data, x_dot=X_dot_sindy)
