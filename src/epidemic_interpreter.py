@@ -7,16 +7,12 @@ then answers questions about the discovered equations in plain language.
 Uses the OpenAI API (gpt-4o-mini by default).
 Maintains conversation history so follow-up questions work naturally.
 
-Designed to demonstrate interpretation on 2-3 representative experiments,
-not to summarise mass evaluation runs.
-
 Usage:
     from src.epidemic_interpreter import EpidemicInterpreter
 
-    agent = EpidemicInterpreter("results/evaluation_metrics.csv")
+    agent = EpidemicInterpreter("results/depth_study/depth_study_results.csv")
     agent.generate_report()
     agent.ask("Why did experiment 3 struggle with gamma recovery?")
-    agent.ask("Is this pipeline ready for real outbreak surveillance?")
     agent.policy_brief("COVID-19")
 """
 
@@ -51,9 +47,6 @@ class EpidemicInterpreter:
     """
     Reads evaluation results and answers questions about them using GPT.
     Maintains full conversation history across turns.
-
-    Recommended usage: pick 2-3 representative experiments from your results
-    (one good, one average, one hard case) and run the agent on those.
     """
 
     def __init__(self, csv_path: str, api_key: str = None,
@@ -70,14 +63,14 @@ class EpidemicInterpreter:
         self.context = self._build_context()
 
         if verbose:
-            n_valid = (self.df["Status"] == "ok").sum() if "Status" in self.df.columns else len(self.df)
-            print(f"EpidemicInterpreter ready — {len(self.df)} experiments loaded ({n_valid} valid)")
+            df_ok = self.df[self.df["status"] == "ok"] if "status" in self.df.columns else self.df
+            print(f"EpidemicInterpreter ready — {len(self.df)} experiments loaded ({len(df_ok)} valid)")
 
     def _build_context(self) -> str:
         df = self.df.copy()
 
-        if "Status" in df.columns:
-            df = df[df["Status"] == "ok"]
+        if "status" in df.columns:
+            df = df[df["status"] == "ok"]
 
         def stat(col):
             if col not in df.columns:
@@ -85,25 +78,38 @@ class EpidemicInterpreter:
             vals = df[col].dropna()
             if vals.empty:
                 return "N/A"
-            return (f"median={vals.median():.4f}  mean={vals.mean():.4f}  "
-                    f"std={vals.std():.4f}  min={vals.min():.4f}  max={vals.max():.4f}")
+            return (
+                f"median={vals.median():.4f}  mean={vals.mean():.4f}  "
+                f"std={vals.std():.4f}  min={vals.min():.4f}  max={vals.max():.4f}"
+            )
 
         rows = []
         for _, r in df.head(50).iterrows():
-            row_str = (
-                f"  Exp{int(r.get('Experiment_ID', 0))+1:3d}: "
-                f"b={r.get('True_Beta','?'):.3f}->{r.get('Est_Beta','?'):.3f} "
-                f"({r.get('Beta_Error_Pct','?'):.1f}%)  "
-                f"g={r.get('True_Gamma','?'):.3f}->{r.get('Est_Gamma','?'):.3f} "
-                f"({r.get('Gamma_Error_Pct','?'):.1f}%)"
-            )
-            if "spi_overall" in r:
+            b_true = r.get("true_beta",     0)
+            b_est  = r.get("est_beta",      0)
+            b_err  = r.get("beta_err_pct",  0)
+            g_true = r.get("true_gamma",    0)
+            g_est  = r.get("est_gamma",     0)
+            g_err  = r.get("gamma_err_pct", 0)
+
+            try:
+                row_str = (
+                    f"  Exp{int(r.get('experiment_id', 0))+1:3d}: "
+                    f"b={float(b_true):.3f}->{float(b_est):.3f} "
+                    f"({float(b_err):.1f}%)  "
+                    f"g={float(g_true):.3f}->{float(g_est):.3f} "
+                    f"({float(g_err):.1f}%)"
+                )
+            except (ValueError, TypeError):
+                continue
+
+            if "spi_overall" in r and pd.notna(r["spi_overall"]):
                 row_str += f"  SPI={r['spi_overall']:.3f}"
-            if "cld_max" in r:
+            if "cld_max" in r and pd.notna(r["cld_max"]):
                 row_str += f"  CLD={r['cld_max']:.8f}"
-            if "fh_pct" in r:
+            if "fh_pct" in r and pd.notna(r["fh_pct"]):
                 row_str += f"  FH={r['fh_pct']:.1f}%"
-            if "zer" in r:
+            if "zer" in r and pd.notna(r["zer"]):
                 row_str += f"  ZER={r['zer']:.3f}"
             rows.append(row_str)
 
@@ -115,8 +121,8 @@ Valid runs         : {len(df)}
 
 PARAMETER RECOVERY
 ------------------
-Beta  error (%)    : {stat('Beta_Error_Pct')}
-Gamma error (%)    : {stat('Gamma_Error_Pct')}
+Beta  error (%)    : {stat('beta_err_pct')}
+Gamma error (%)    : {stat('gamma_err_pct')}
 
 STRUCTURAL PURITY
 -----------------
@@ -178,25 +184,16 @@ PER-EXPERIMENT DETAIL (first 50)
         return reply
 
     def generate_report(self, save_path: str = "results/llm_report.md") -> str:
-        """
-        Generates a structured report covering all metric categories
-        and saves it to markdown.
-        """
+        """Generates a structured report and saves it to markdown."""
         prompt = """Write a structured technical report on these SIR equation
 discovery results. Use these exact section headers:
 
 ## Executive Summary
-
 ## Parameter Recovery
-
 ## Equation Structural Quality
-
 ## Physics Preservation
-
 ## Forecasting and Generalisation
-
 ## Data Efficiency
-
 ## Limitations and Next Steps
 
 Be direct. One paragraph per section max. No bullet points."""
@@ -217,34 +214,31 @@ Be direct. One paragraph per section max. No bullet points."""
 
         return report
 
-    def explain_experiment(self, experiment_id: int) -> str:
-        """
-        Asks GPT to explain what happened in a specific experiment —
-        why the errors are what they are and what the metrics mean
-        for that particular epidemic profile.
-        """
-        row = self.df[self.df["Experiment_ID"] == experiment_id]
-        if row.empty:
-            return f"Experiment {experiment_id} not found in CSV."
+    def explain_experiment(self, experiment_idx: int) -> str:
+        """Explains what happened in a specific experiment by row index."""
+        df_ok = self.df[self.df["status"] == "ok"].reset_index(drop=True) \
+            if "status" in self.df.columns else self.df.reset_index(drop=True)
+
+        if experiment_idx >= len(df_ok):
+            return f"Experiment index {experiment_idx} out of range ({len(df_ok)} valid experiments)."
+
+        row = df_ok.iloc[experiment_idx]
         return self.ask(
             f"Explain the results of this specific experiment in detail. "
             f"What do the errors and metrics tell us about this epidemic profile?\n"
-            f"{row.to_string(index=False)}"
+            f"{row.to_string()}"
         )
 
-    def compare_experiments(self, metric: str = "Beta_Error_Pct") -> str:
-        """
-        Asks GPT to explain what separates the best and worst experiments
-        by the given metric column.
-        """
+    def compare_experiments(self, metric: str = "beta_err_pct") -> str:
+        """Compares best and worst experiments by the given metric."""
         df = self.df.copy()
-        if "Status" in df.columns:
-            df = df[df["Status"] == "ok"]
+        if "status" in df.columns:
+            df = df[df["status"] == "ok"]
 
         if metric not in df.columns:
             return f"Column '{metric}' not found in CSV."
 
-        cols = ["Experiment_ID", "True_Beta", "True_Gamma", metric]
+        cols = ["experiment_id", "true_beta", "true_gamma", metric]
         cols = [c for c in cols if c in df.columns]
 
         best  = df.nsmallest(5, metric)[cols].to_string(index=False)
@@ -258,10 +252,7 @@ Be direct. One paragraph per section max. No bullet points."""
         )
 
     def policy_brief(self, disease_name: str = "a novel respiratory virus") -> str:
-        """
-        Generates a 3-paragraph non-technical brief suitable for
-        public health ministers or hospital administrators.
-        """
+        """Generates a 3-paragraph non-technical brief for public health officials."""
         return self.ask(
             f"Write a 3-paragraph non-technical policy brief as if these "
             f"results came from tracking {disease_name}. "
