@@ -17,6 +17,7 @@ Requires-Dist: pysindy>=1.7.5
 Requires-Dist: google-generativeai>=0.4.0
 Requires-Dist: tqdm>=4.66.0
 Requires-Dist: notebook>=7.0.0
+Requires-Dist: openai>=1.0.0
 Dynamic: license-file
 
 # sira-neurosymbolic-epidemics
