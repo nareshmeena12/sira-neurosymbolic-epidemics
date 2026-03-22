@@ -1,0 +1,9 @@
+{
+  "audit_summary": "\nFULL 9-METRIC AUDIT\n===================\nTrue:      \u03b2=1.5000  \u03b3=0.3000  R0=5.00\nRecovered: \u03b2=1.4649  \u03b3=0.2879  R0=5.09\nBeta error: 2.34%   Gamma error: 4.02%\n\nSTRUCTURAL\nSPI overall  : 1.0000\nSPI precision: 1.0000\nSPI recall   : 1.0000\nPSS beta std : 0.0087\nPSS gamma std: 0.01095\n\nPHYSICAL\nCLD max      : 0.0000000000\nCLD conserved: True\nFH days      : 20.0\nFH coverage  : 100.0%\nOOD overall  : 0.3085\n\nDEPLOYABILITY\nCNT          : 0.005\nDST          : 0.5\nTTD mean (s) : 1.65\n\nEFFICIENCY\nZER          : 0.6286\n",
+  "b_true": 1.5,
+  "g_true": 0.3,
+  "b_est": 1.4648774840926788,
+  "g_est": 0.28793593162520675,
+  "b_err": 2.3415010604880786,
+  "g_err": 4.021356124931079
+}
