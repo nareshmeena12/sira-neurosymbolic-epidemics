@@ -22,7 +22,8 @@ dependencies = [
     "pysindy>=1.7.5",            # Added for equation discovery
     "google-generativeai>=0.4.0", # Added for the LLM Physics Analyst
     "tqdm>=4.66.0",              # Added for mass-evaluation progress bars
-    "notebook>=7.0.0"            # Added so mentors can run your Jupyter report
+    "notebook>=7.0.0", 
+    "openai>=1.0.0"
 ]
 
 [tool.setuptools.packages.find]
