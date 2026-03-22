@@ -25,21 +25,15 @@ from openai import OpenAI
 
 warnings.filterwarnings("ignore")
 
+SYSTEM_PROMPT = """You are an expert epidemiologist analysing SIR equation discovery results.
 
-SYSTEM_PROMPT = """You are an expert epidemiologist and machine learning scientist
-specialising in equation discovery from stochastic epidemic data.
-
-You are analysing results from a pipeline called SIRA that uses:
-- Gillespie stochastic simulations to generate realistic epidemic data
-- A neural network trained to learn a smooth continuous manifold over time
-- PySINDy sparse regression to recover the governing SIR differential equations
-- Nine evaluation metrics: SPI, PSS, CLD, FH, OOD MAE, CNT, DST, ZER, TTD
-
-When interpreting results:
-1. Lead with the most important finding
-2. Explain metrics in plain language that a public health official could understand
-3. Be honest about weaknesses, do not oversell
-4. Focus on what the numbers mean for real epidemic surveillance
+Rules:
+- Maximum 150 words per response
+- Lead with the single most important finding
+- Use plain language — no jargon without explanation
+- Be direct and honest about weaknesses
+- No bullet point lists longer than 4 items
+- Never repeat information already stated
 """
 
 
@@ -215,19 +209,15 @@ Be direct. One paragraph per section max. No bullet points."""
         return report
 
     def explain_experiment(self, experiment_idx: int) -> str:
-        """Explains what happened in a specific experiment by row index."""
-        df_ok = self.df[self.df["status"] == "ok"].reset_index(drop=True) \
-            if "status" in self.df.columns else self.df.reset_index(drop=True)
+     df_ok = self.df[self.df["status"] == "ok"].reset_index(drop=True) \
+        if "status" in self.df.columns else self.df.reset_index(drop=True)
 
-        if experiment_idx >= len(df_ok):
-            return f"Experiment index {experiment_idx} out of range ({len(df_ok)} valid experiments)."
-
-        row = df_ok.iloc[experiment_idx]
-        return self.ask(
-            f"Explain the results of this specific experiment in detail. "
-            f"What do the errors and metrics tell us about this epidemic profile?\n"
-            f"{row.to_string()}"
-        )
+     row = df_ok.iloc[experiment_idx]
+     return self.ask(
+        f"In under 150 words, what are the two most important findings "
+        f"from this experiment and what do they mean for epidemic surveillance?\n"
+        f"{row.to_string()}"
+    )
 
     def compare_experiments(self, metric: str = "beta_err_pct") -> str:
         """Compares best and worst experiments by the given metric."""
