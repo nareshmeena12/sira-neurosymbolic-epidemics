@@ -30,7 +30,7 @@
 14. [Stochastic Variability — Fano Factor Analysis](#14-stochastic-variability--fano-factor-analysis)
 15. [Limitations and Honest Assessment](#15-limitations-and-honest-assessment)
 16. [Running the Full Study](#16-running-the-full-study)
-17. [GSoC ML4Sci Context](#17-gsoc-ml4sci-context)
+17. [GSoC HumanAI Context](#17-gsoc-humanai-context)
 18. [References](#18-references)
 19. [License and Acknowledgements](#19-license-and-acknowledgements)
 
@@ -571,7 +571,7 @@ run_slow_metrics()
 
 ---
 
-## 17. GSoC ML4Sci Context
+## 17. GSoC HumanAI Context
 
 This project was developed as a test task for the Google Summer of Code 2025 Human AI program under the SIRA project (Structured Identification from Random Assemblies).
 
